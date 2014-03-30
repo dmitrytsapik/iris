@@ -1,0 +1,232 @@
+<?php
+/**
+* Open School Journalreview)
+* Copyright (C) 2012  Dmitry Tsapik
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version. 
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program.  If not, see http://www.gnu.org/licenses/.
+**/
+session_start();
+header('Content-Type: text/html; charset=utf-8');
+error_reporting(E_ALL);
+include_once('../core/mysql_connect.php');// Check access rights
+$panel.='<li><a href="#users" onclick="$.get(\'modules/plan.mod.php\', { page: \'true\' }).done(function(data) { $(\'#modules\').html(data); });$(\'#navigate li\').removeClass(\'active\');$(this).parent().addClass(\'active\');"><i class="icon-book"></i> '._("Учебный план").'</a></li>';
+//Вывод типа работ в заголовок таблицы
+$curriculum_type_of_work_array=SQL_RET("SELECT * FROM curriculum_type_of_work");
+$type_of_work_table=$curriculum_type_of_work_array->fetchAll(PDO::FETCH_ASSOC);
+$type_of_work_table_count=$curriculum_type_of_work_array->rowCount();
+switch ($_POST['act']) {
+    case 'new_course':
+        SQL_NOISE("INSERT INTO `curriculum_courses` VALUES ('".$_POST['course_caption']."', '".$_SESSION['login']."', '0000-00-00', '0000-00-00', '0000-00-00', 'no', '".$_POST['course_comment']."', UNIX_TIMESTAMP());");
+	die(_('Успешно добавлен курс: ').$_POST['course_caption']);
+        break;
+    case 'new_theme':
+        SQL_NOISE("INSERT INTO `curriculum_theme` VALUES ('".$_POST['course']."', UNIX_TIMESTAMP(), '0000-00-00', '0000-00-00', '".$_POST['caption']."', '".$_POST['comment']."');");
+	die(_('Успешно добавлена тема: ').$_POST['caption']);
+        break;
+    case 'new_lesson':
+        SQL_NOISE("INSERT INTO `curriculum_lesson` VALUES ('".$_POST['theme']."', UNIX_TIMESTAMP(), '".$_POST['caption']."', '".$_POST['homework']."', '".$_POST['date']."', '".$_POST['type']."', '".$_POST['comment']."');");
+	die(_('Успешно добавлен урок: ').$_POST['caption']);
+        break;
+    case 'edit':
+        //if($u_pass) SQL_NOISE("update `users` set `pass`='$u_pass_hash' where `login`='$u_sign'");
+	//SQL_NOISE("update `users` set `name`='$u_name', `login`='$u_login', `type`='$u_type', `birthday`='$u_bday', `other`='$u_descr'
+	//  where `login`='$u_sign'");
+	//die(_('Пользователь изменен: ').$u_name);
+        break;
+    case 'remove_course':
+        SQL_NOISE("delete from `curriculum_courses` where `curriculum_course_sign`='".$_POST['id']."'");
+       	die(_('Курс удален')); 
+       	break;
+    case 'remove_theme':
+        SQL_NOISE("delete from `curriculum_theme` where `curriculum_theme_sign`='".$_POST['id']."'");
+       	die(_('Тема удалена')); 
+       	break;
+    case 'remove_lesson':
+        SQL_NOISE("delete from `curriculum_lesson` where `curriculum_lesson_sign`='".$_POST['id']."'");
+       	die(_('Урок удален')); 
+       	break;
+    //case 'new_theme':
+        //SQL_NOISE("INSERT INTO `curriculum_theme` VALUES ('".$_POST['course_caption']."', '".$_SESSION['login']."', '0000-00-00', '0000-00-00', '0000-00-00', 'no', '".$_POST['course_comment']."', UNIX_TIMESTAMP());");
+	//die($_POST['course_caption'].";".$_POST['course_comment']);
+        //break;
+}
+class Curriculum
+      {
+	  const _url='modules/plan.mod.php';
+	  //Панель навигации;
+	  private function do_bc($elements) {
+		  foreach ($elements as $element) {
+			  if($element['url']) { $a_o="<a>"; $a_c="</a>"; } else { $a_o=null; $a_c=null; };
+			  //if($element['divider']) { $divider='<span class="divider">/</span>'; } else { $divider=null; };
+			  $out.='<li class="'.$element['active'].'" onclick="'.$element['onclick'].'">'.$a_o.$element['a'].$a_c.$divider.'</li>';
+						  }
+		  return $out;
+					    }
+	  function do_first_table() {
+		   global $type_of_work_table_count, $type_of_work_table;
+		   $curriculum_courses_array=SQL_RET("SELECT * FROM curriculum_courses");
+		   while($c_courses=ON_FA($curriculum_courses_array)) {
+			 $courses.='<tr ondblclick="go_to_course('.$c_courses['curriculum_course_sign'].');">
+				       <td>'.$c_courses['caption'].' <i onclick="$.post(\'modules/plan.mod.php\', { act: \'remove_course\', id: '.$c_courses['curriculum_course_sign'].' }).done(function(data) { alert(data); });" class="icon-remove"></i></td>
+				       <td>'.$c_courses['author'].'</td>';
+				       $curriculum_type_of_work_array=SQL_RET("SELECT * FROM curriculum_type_of_work");
+				       while($c_tof=ON_FA($curriculum_type_of_work_array)) {
+					    $x=SQL_RET("SELECT * FROM `curriculum_lesson` WHERE `type`='".$c_tof['abbr']."' AND `curriculum_theme_sign`=(SELECT curriculum_theme_sign FROM curriculum_courses WHERE curriculum_course_sign='".$c_courses['curriculum_course_sign']."')")->rowCount();
+					    $courses.='<td>'.$temp11['caption'].$x.'</td>';
+					    $counter+=$x;
+				       }
+				       $courses.='<td>'.$counter.'</td><td>'.$c_courses['date_start'].'</td>
+				       <td>'.$c_courses['date_end'].'</td>
+				       <td>'.$c_courses['date_change'].'</td>
+				       <td>'.$c_courses['approval'].'</td>
+				       <td>'.$c_courses['comment'].'</td>
+				    </tr>';
+								       }
+		   $out_other.=  '<a href="#window" id="course_window_button" style="margin:3px;" class="btn btn-success pull-right" data-toggle="modal"><i class=" icon-plus-sign icon-white"></i> '._('Добавить курс').'</a>
+				  <script>
+					  $("#course_window_button").click(function() {
+					  $("#windowLabel").html("'._('Новый курс').'");
+					  $("#save").click(function(){
+					  				$.post(\'modules/plan.mod.php\', { act: "new_course",
+									      course_caption: $("input[name=course_caption]").val(),
+									      course_comment: $("input[name=course_comment]").val(),
+									}).done(function(data) { alert(data); });
+					  });
+					  $(".modal-body").html(\'<input name="course_caption" placeholder="'._('название курса').'" class="input-block-level" type="text"><input name="course_comment" placeholder="'._('комментарий к курсу').'" class="input-block-level" type="text">\');
+										      });
+				  </script>';
+		  $out_bc.=$this->do_bc(array(array("active"=>"active", "a"=>_("Список курсов"))));
+		  $thead1='';
+			$thead2='
+ 			<th>'._('Начала').'</th>
+			<th>'._('Окончания').'</th>
+			<th>'._('Изменения').'</th>';
+		  return array('other'=>$out_other, 'bc'=>$out_bc, 'thead1'=>$thead1, 'thead2'=>$thead2, 'tbody'=>$courses);
+	  }
+	  //Вывод списка курсов;
+	  function do_course($course_id) {
+		   global $type_of_work_table_count, $type_of_work_table;
+		   $curriculum_theme=SQL_RET("SELECT * FROM `curriculum_theme` WHERE `curriculum_course_sign`='".$course_id."'");
+		   $out_other.='<a href="#window" id="theme_window_button" style="margin:3px;" role="button" class="btn btn-success pull-right" data-toggle="modal"><i class=" icon-plus-sign icon-white"></i> '._('Добавить тему').'</a>
+				<script>
+					  $("#theme_window_button").click(function() {
+					  $("#windowLabel").html("'._('Новая тема').'");
+					  $("#save").click(function(){
+					  				$.post(\'modules/plan.mod.php\', { act: "new_theme",
+									      course: '.$course_id.',
+									      caption: $("input[name=caption]").val(),
+									      comment: $("input[name=comment]").val(),
+									}).done(function(data) { alert(data); });
+					  });
+					  $(".modal-body").html(\'<input name="caption" placeholder="'._('название темы').'" class="input-block-level" type="text"><input name="comment" placeholder="'._('комментарий к теме').'" class="input-block-level" type="text">\');
+										      });
+				  </script>';
+		   $out_bc.=$this->do_bc(array(
+					       array("url"=>true, "onclick"=>"$.get('".self::_url."', { page: 'true' }).done(function(data) { $('#modules').html(data); });", "a"=>_('Главная'))));
+		   $thead1.='	           <th rowspan="2" style="width:16%">'._('Название').'</th>
+					   <th colspan='.++$type_of_work_table_count.' style="width:16%">'._('Часы').'</th>
+					   <th colspan="2" style="width:16%">'._('Дата').'</th>
+					   <th rowspan="2" style="width:16%">'._('Комментарий').'</th>
+				       </tr>
+				       <tr>';
+				       $thead2.='
+					   <th>'._('Начала').'</th>
+					   <th>'._('Окончания').'</th>';
+		   while($c_toc=ON_FA($curriculum_theme)) {
+			$tbody.= '	<tr ondblclick="go_to_lesson('.$c_toc['curriculum_theme_sign'].');">
+					   <td title="">'.$c_toc['caption'].' <i onclick="$.post(\'modules/plan.mod.php\', { act: \'remove_theme\', id: '.$c_toc['curriculum_theme_sign'].' }).done(function(data) { alert(data); });" class="icon-remove"></i></td>
+					   <td></td>
+					   <td></td>
+					   <td title="">'.$c_toc['date_start'].'</td>
+					   <td title="">'.$c_toc['date_end'].'</td>
+					   <td title="">'.$c_toc['comment'].'</td>
+					<tr>';
+							  }
+		   return array('other'=>$out_other, 'bc'=>$out_bc, 'thead1'=>$thead1, 'thead2'=>$thead2, 'tbody'=>$tbody);
+					} 
+	  function do_theme($theme_id){
+		   $theme_array=SQL_FA("SELECT curriculum_course_sign, caption FROM `curriculum_theme`  WHERE `curriculum_theme_sign`='$theme_id'");
+		   $theme_caption=$theme_array['caption'];
+		   $course_sign=$theme_array['curriculum_course_sign'];
+		   $course_array=SQL_FA("SELECT caption FROM `curriculum_courses` WHERE `curriculum_course_sign`='$course_sign'");
+		   $course_caption=$course_array['caption'];
+		   $curriculum_lesson=SQL_RET("SELECT * FROM `curriculum_lesson` WHERE `curriculum_theme_sign`='$theme_id'");
+		   $out_other='<a href="#window" id="lesson_window_button" style="margin:3px;" role="button" class="btn btn-success pull-right" data-toggle="modal">
+				  <i class=" icon-plus-sign icon-white"></i>
+				  '._('Добавить урок').
+			      '</a>
+			      <script>
+					  $("#lesson_window_button").click(function() {
+					  $("#windowLabel").html("'._('Новый урок').'");
+					  $("#save").click(function(){
+					  				$.post(\'modules/plan.mod.php\', { act: "new_lesson",
+									      theme: '.$theme_id.',
+									      caption: $("input[name=caption]").val(),
+									      homework: $("input[name=homework]").val(),
+									      date: $("input[name=date]").val(),
+									      type: $("input[name=type]").val(),
+									      comment: $("input[name=comment]").val()
+									}).done(function(data) { alert(data); });
+					  });
+					  $(".modal-body").html(\'<input name="caption" placeholder="'._('название темы').'" class="input-block-level" type="text"><input name="homework" placeholder="'._('домашнее задание').'" class="input-block-level" type="text"><input name="date" id="datepicker" placeholder="'._('дата проведения').'" class="input-block-level" type="text"><input name="type" placeholder="'._('тип урока').'" class="input-block-level" type="text"><input name="comment" placeholder="'._('комментарий к теме').'" class="input-block-level" type="text">\');
+					$(function() { $( "#datepicker" ).datepicker();
+		        $( "#datepicker" ).datepicker( "option", "dateFormat", "yy-mm-dd");
+		      });
+					});
+			      </script>
+			      ';
+		   $out_bc=$this->do_bc(array(
+						 array("divider"=>true, "url"=>true, "onclick"=>"$.get('".self::_url."', { page: 'true' }).done(function(data) { $('#modules').html(data); });", "a"=>_('Главная')),
+						 array("divider"=>true, "url"=>true, "onclick"=>"$.post('".self::_url."', { course_id: $course_sign }).done(function(data) { $('#modules').html(data); });", "a"=>$course_caption),
+						 array("active"=>"active", "a"=>$theme_caption)));
+		   $thead='<th>'._('Название').'</th>
+			   <th>'._('Домашнее задение').'</th>
+			   <th>'._('Дата').'</th>
+			   <th>'._('Тип').'</th>
+			   <th>'._('Комментарий').'</th>';
+		   while($c_tol=ON_FA($curriculum_lesson)) {
+			array_shift($c_tol); array_shift($c_tol);
+			$tbody.= '	  <tr>';
+			foreach ($c_tol as $c_tol_p) { 
+				$tbody.= '   <td>'.$c_tol_p.'</td>';
+						     }
+			$tbody.= '	  </tr>';
+							  }
+		   return array('other'=>$out_other, 'bc'=>$out_bc, 'thead'=>$thead, 'tbody'=>$tbody);
+				    }
+}
+if(!isset($libs_js_css)) {
+include_once('smarty_for_mods.php');
+$smarty = new Smarty_Modules();
+$a = new Curriculum();
+if($_GET['page']) { $array_out=$a->do_first_table(); };
+if($_POST['theme_id']) {
+$array_out=$a->do_theme($_POST['theme_id']);
+}
+if($_POST['course_id']) {
+$array_out=$a->do_course($_POST['course_id']);
+}
+$smarty->assign('html', $array_out['other']);
+$smarty->assign('bc', $array_out['bc']);
+$smarty->assign('lang', array('caption'=>_('Название'), 'author'=>_('Автор'), 'summary'=>_('Часы'),
+			      'date'=>_('Дата'), 'apply'=>_('Утверждение'), 'comment'=>_('Комментарий')));
+$smarty->assign('thead1', $array_out['thead1']);
+$smarty->assign('thead2', $array_out['thead2']);
+$smarty->assign('type_of_work_table_count', $type_of_work_table_count);
+$smarty->assign('type_of_work', $type_of_work_table);
+$smarty->assign('tbody', $array_out['tbody']);
+$smarty->display('default.tpl');
+$smarty->display('plan.mod.tpl');
+}
+?>

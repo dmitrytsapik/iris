@@ -1,0 +1,91 @@
+<?php
+/**
+* Open School Journalreview)
+* Copyright (C) 2012  Dmitry Tsapik
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version. 
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program.  If not, see http://www.gnu.org/licenses/.
+**/
+session_start();
+header('Content-Type: text/html; charset=utf-8');
+error_reporting(E_ALL);
+include_once('../core/mysql_connect.php');// Check access rights
+setlocale(LC_ALL, 'ru_RU.utf8');
+if($_POST['state']) {
+switch ($_POST['state']) {
+ case 'glyphicon glyphicon-arrow-up':
+ $order_new=$_POST['order']-1;
+ break;
+ case 'glyphicon glyphicon-arrow-down':
+ $order_new=$_POST['order']+1;
+ break;
+ } 
+SQL_NOISE("UPDATE `schedule` SET `order_lesson`='".$_POST['order']."' WHERE `order_lesson`='".$order_new."' AND `date`='".$_POST['date']."'");
+SQL_NOISE("UPDATE `schedule` SET `order_lesson`='".$order_new."' WHERE `order_lesson`='".$_POST['order']."' AND `date`='".$_POST['date']."' AND `uniq_id`='".$_POST['uniq_id']."'");
+die($_POST['state'].$_POST['date'].$_POST['order']);
+}
+$panel.='<li><a href="#users" onclick="$.get(\'modules/schedule.mod.php\', { page: \'true\' }).done(function(data) { $(\'#modules\').html(data); });$(\'#navigate li\').removeClass(\'active\');$(this).parent().addClass(\'active\');"><i class="icon-calendar"></i> '._("Расписание").'</a></li>';
+$query_w=SQL_RET("SELECT * FROM duration ORDER by `order_lesson`");
+while($lesson_w=ON_FA($query_w))
+{
+$date_begin = '2013-07-08';
+$date_end = date('Y-m-d', strtotime($date_begin.' + 6 days'));
+$date = $date_begin;
+$week_d.="<tr title=".$lesson_w['order_lesson']."><td style='text-align:center; vertical-align:middle;'>".$lesson_w['start']."<hr style='margin:0px;'>".$lesson_w['end']."</td>";
+$max_order=SQL_FA('SELECT MAX(order_lesson) FROM duration');
+$max_order=$max_order['MAX(order_lesson)'];
+while($date <= $date_end){
+    ++$i_day;
+    if($i_day<=7) { $head_days.=strftime("<th style='width:13%;text-align:center;'>%A<hr style='margin:0px;'>%Y-%m-%d</th>", strtotime($date)); };
+    $query=SQL_FA("SELECT * FROM schedule  WHERE `order_lesson`='".$lesson_w['order_lesson']."' AND `date`='".$date."'");
+    $query2=SQL_FA("SELECT `name` FROM users  WHERE `login`='".$query['login']."'");
+    if($lesson_w['order_lesson']!=1) { $up=' <a href="#"><span class="glyphicon glyphicon-arrow-up"></span></i></a>'; } else { $up=''; };
+    if($lesson_w['order_lesson']!=$max_order) { $down=' <a href="#"><span class="glyphicon glyphicon-arrow-down"></i></a>'; } else { $down=''; };;
+    if(is_array($query)) { $week_d.='<td alt='.$query['uniq_id'].' title="'.$date.'" style="text-align:center; vertical-align:middle;">'.$query['caption'].$up.$down.'<hr style="margin:0px;"><small>'.$query2['name'].'</small></td>'; } else
+    { $week_d.='<td style="background-color:#dff0d8; text-align:center; vertical-align:middle;">&mdash;</td>'; }
+    $date = date('Y-m-d', strtotime($date.' + 1 days'));
+}
+}
+//$day=date("Y-m-d", strtotime($week-date("W")." week -".( date("w")==0?6:date("w")-$i )." day"));
+//$daynbr=date("w")-1;*/
+$schedule_out.=  '<script>
+$(function() { $( "#datepicker" ).datepicker();
+$( "#datepicker" ).datepicker( "option", "dateFormat", "yy-mm-dd");
+$("tr").mouseover(function() { $(this).addClass("info"); });
+$("tr").mouseout(function() { $(this).removeClass("info"); });
+});
+$("td a").click(function() {
+$.post("modules/schedule.mod.php", { 
+state: $(this).children().attr("class"),
+date: $(this).parent().attr("title"),
+uniq_id: $(this).parent().attr("alt"),
+order: $(this).parent().parent().attr("title")
+}, function(data) { 
+//alert(data);
+});
+$.get(\'modules/schedule.mod.php\', { page: \'true\' }).done(function(data) { $(\'#modules\').html(data); });
+});
+</script>
+    <table class="table table-bordered">
+	    <thead>
+		   <tr>
+			<th style="width:9%"></th>
+			'.$head_days.'
+		   </tr>
+	    </thead>
+    <tbody>
+   '.$week_d.'
+    </tbody>
+    </table>';
+if($_GET['page']) { print $schedule_out; };
+?>
