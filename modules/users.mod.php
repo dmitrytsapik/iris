@@ -26,7 +26,7 @@ $panel.='<li class="active">
         </script>';
 include_once('../core/login.php');
 include_once('../core/mysql_connect.php');
-//if(!(($_SESSION['access'])=='admin')) { header("Location: /"); die(); }
+if(!(($_SESSION['access'])=='admin')) { header("Location: /"); die(); }
 // Users table begin
 if($_GET['get_users_by_type'])
     {
